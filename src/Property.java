@@ -1,4 +1,4 @@
-package Leasy;
+package comp378_JDBC;
 
 import java.sql.Date;
 
@@ -15,7 +15,7 @@ public class Property {
 	public boolean furnished;
 
 	public int numBedroom;
-	public int numBathroom;
+	public double numBathroom;
 	
 	public Date dateAvailable;
 	public int minStay;
@@ -24,7 +24,7 @@ public class Property {
 	
 	public Property(int propID, int ownerID, String address, String city, 
 			String state, double monthlyRent, boolean laundry, boolean furnished,
-			int numBedroom, int numBathroom, Date dateAvailable, int minStay,
+			int numBedroom, double numBathroom, Date dateAvailable, int minStay,
 			int maxStay, String status) {
 		this.propID = propID;
 		this.ownerID = ownerID;
@@ -39,8 +39,50 @@ public class Property {
 		this.dateAvailable = dateAvailable;
 		this.minStay = minStay;
 		this.maxStay = maxStay;
+		this.status = status;
 		
 	}
-	
+	public int getPropID() {
+		return this.propID;
+	}
+	public int getOwnerID() {
+		return this.ownerID;
+	}
+	public String getPropAddress() {
+		return this.address;
+	}
+	public String getPropCity() {
+		return this.city;
+	}
+	public String getPropState() {
+		return this.state;
+	}
+	public double getPropRent() {
+		return this.rent;
+	}
+	public boolean getLaundry() {
+		return this.laundry;
+	}
+	public boolean getFurnished() {
+		return this.furnished;
+	}
+	public int getNumBedroom() {
+		return this.numBedroom;
+	}
+	public double getNumBathroom() {
+		return this.numBathroom;
+	}
+	public Date getDateAvailable() {
+		return this.dateAvailable;
+	}
+	public int getMinStay() {
+		return this.minStay;
+	}
+	public int getMaxStay() {
+		return this.maxStay;
+	}
+	public String getPropStatus() {
+		return this.status;
+	}
 	
 }

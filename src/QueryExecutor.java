@@ -1,4 +1,4 @@
-package Leasy;
+package comp378_JDBC;
 
 import java.sql.Connection;
 import java.util.Properties;
@@ -202,6 +202,6 @@ public class QueryExecutor {
 		QueryExecutor qe = new QueryExecutor();
 
 		// This is an example of how to execute a query.
-		qe.executeQuery("SELECT * FROM `leasy`");
+		qe.executeQuery("SELECT * FROM `supplier`");
 	}
 }
