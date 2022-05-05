@@ -17,15 +17,15 @@ public class Property {
 	public int numBedroom;
 	public double numBathroom;
 	
-	public Date dateAvailable;
+	public String dateAvailable;
 	public int minStay;
 	public int maxStay;
 	public String status;
 	
 	public Property(int propID, int ownerID, String address, String city, 
-			String state, double monthlyRent, boolean laundry, boolean furnished,
-			int numBedroom, double numBathroom, Date dateAvailable, int minStay,
-			int maxStay, String status) {
+			String state, int numBedroom, double numBathroom, String dateAvailable, 
+			int minStay, int maxStay, double monthlyRent, boolean laundry, 
+			boolean furnished, String status) {
 		this.propID = propID;
 		this.ownerID = ownerID;
 		this.address = address;
@@ -72,7 +72,7 @@ public class Property {
 	public double getNumBathroom() {
 		return this.numBathroom;
 	}
-	public Date getDateAvailable() {
+	public String getDateAvailable() {
 		return this.dateAvailable;
 	}
 	public int getMinStay() {

@@ -73,7 +73,7 @@ public class Owner {
 			statement.setString(3, this.last);
 			
 			conn.setAutoCommit(false);
-			statement.executeUpdate();
+			statement.execute();
 			
 			conn.commit();
 			conn.setAutoCommit(true);
@@ -81,7 +81,7 @@ public class Owner {
 		} catch (SQLException e) {
 			System.out.println(e.getMessage());
 			try {
-				System.out.print("Transaction is being rolled back");
+				System.out.println("Transaction is being rolled back");
 				conn.rollback();
 			} catch (SQLException e2) {
 				qe.handleSQLException(e2);
@@ -95,7 +95,7 @@ public class Owner {
 		String query = "INSERT INTO `property` (prop_id, owner_id, address, city, "
 				+ "state, monthly_rent, laundry, furnished, num_bedrooms,"
 				+ "num_bathrooms, date_available, min_stay, max_stay, rent_status) "
-				+ "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+				+ "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, STR_TO_DATE(?, '%Y-%m-%d'), ?, ?, ?);";
 		
 		try (PreparedStatement statement = conn.prepareStatement(query)) {
 			
@@ -109,7 +109,7 @@ public class Owner {
 			statement.setBoolean(8, prop.getFurnished());
 			statement.setInt(9, prop.getNumBedroom());
 			statement.setDouble(10, prop.getNumBathroom());
-			statement.setDate(11, prop.getDateAvailable());
+			statement.setString(11, prop.getDateAvailable());
 			statement.setInt(12, prop.getMinStay());
 			statement.setInt(13, prop.getMaxStay());
 			statement.setString(14, prop.getPropStatus());
@@ -123,7 +123,7 @@ public class Owner {
 		} catch (SQLException e) {
 			System.out.println(e.getMessage());
 			try {
-				System.out.print("Transaction is being rolled back");
+				System.out.println("Transaction is being rolled back");
 				conn.rollback();
 			} catch (SQLException e2) {
 				qe.handleSQLException(e2);
