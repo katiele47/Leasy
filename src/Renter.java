@@ -5,13 +5,14 @@ import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.HashMap;
 import java.util.List;
 
 public class Renter {
 	
-	//STATIC 
+	//STATIC FIELDS
 	
-	//required fields
+	//required 
 	public int renterID;
 	public String first;
 	public String last;
@@ -20,20 +21,19 @@ public class Renter {
 	int numBedroom;
 	public int numBathroom;
 	
-	//duaration 
+	//duration 
 	public String date;
 	public int minStay;
 	public int maxStay;
 	
-	//optional fields
+	//optional 
 	public double budget = 0;
-	public boolean laundry = false;
-	public boolean furnished = false;
+	public String laundry = "Flexible";
+	public String furnished = "Flexible";
 	
 	
-	//DYNAMIC
+	//DYNAMIC FIELDS
 	
-	//dynamic fields
 	public String actionStatus;
 	public List<Property> inquiryList;
 	public Property rentedProp;
@@ -54,17 +54,99 @@ public class Renter {
 		this.maxStay = maxStay;
 	}
 	
+	public int getRenterID() {
+		return this.renterID;
+	}
+	
 	//Methods for setting optional fields
-	public void setBudget(double budgetLimit) {
-		this.budget = budgetLimit;
+	public void setBudget(QueryExecutor qe, double budgetLimit) {
+		Connection conn = qe.getConnection();
+		
+		String update = "UPDATE `renter` SET budget = ? WHERE renter_id = ?;";
+		
+		try (PreparedStatement statement = conn.prepareStatement(update)) {
+			
+			statement.setDouble(1, budgetLimit);
+			statement.setInt(2, this.renterID);
+			
+			conn.setAutoCommit(false);
+			statement.execute();
+			
+			conn.commit();
+			conn.setAutoCommit(true);
+			
+			//Only update class instance if transaction succeeds
+			this.budget = budgetLimit;
+
+		} catch (SQLException e) {
+			System.out.println(e.getMessage());
+			try {
+				System.out.println("Transaction is being rolled back");
+				conn.rollback();
+			} catch (SQLException e2) {
+				qe.handleSQLException(e2);
+			}
+		}
 	}
 	
-	public void setLaundry(boolean hasLaundry) {
-		this.laundry = hasLaundry;
+	public void setLaundry(QueryExecutor qe, String hasLaundry) {
+		Connection conn = qe.getConnection();
+		
+		String update = "UPDATE `renter` SET laundry = ? WHERE renter_id = ?;";
+		
+		try (PreparedStatement statement = conn.prepareStatement(update)) {
+			
+			statement.setString(1, hasLaundry);
+			statement.setInt(2, this.renterID);
+			
+			conn.setAutoCommit(false);
+			statement.execute();
+			
+			conn.commit();
+			conn.setAutoCommit(true);
+			
+			//Only update class instance if transaction succeeds
+			this.laundry = hasLaundry;
+
+		} catch (SQLException e) {
+			System.out.println(e.getMessage());
+			try {
+				System.out.println("Transaction is being rolled back");
+				conn.rollback();
+			} catch (SQLException e2) {
+				qe.handleSQLException(e2);
+			}
+		}
 	}
 	
-	public void setFurnishment(boolean isFurnished) {
-		this.furnished = isFurnished;
+	public void setFurnishing(QueryExecutor qe, String isFurnished) {
+		Connection conn = qe.getConnection();
+		
+		String update = "UPDATE `renter` SET furnished = ? WHERE renter_id = ?;";
+		
+		try (PreparedStatement statement = conn.prepareStatement(update)) {
+			
+			statement.setString(1, isFurnished);
+			statement.setInt(2, this.renterID);
+			
+			conn.setAutoCommit(false);
+			statement.execute();
+			
+			conn.commit();
+			conn.setAutoCommit(true);
+			
+			//Only update class instance if transaction succeeds
+			this.furnished = isFurnished;
+
+		} catch (SQLException e) {
+			System.out.println(e.getMessage());
+			try {
+				System.out.println("Transaction is being rolled back");
+				conn.rollback();
+			} catch (SQLException e2) {
+				qe.handleSQLException(e2);
+			}
+		}
 	}
 	
 	
@@ -105,12 +187,26 @@ public class Renter {
 		}
 	}
 	/**
-	 * Search all properties matching optional filters - budget, laundry, and furnished. 
+	 * Search all properties by optional filters - budget, laundry, and furnished. 
 	 * If any of the optional filters is not specified, they won't be added to the query.
 	 * 
 	 * Note that the query will set all other filters (city, state, date, etc) to match
 	 * the fields initially associated with a renter by default. These fields are automatically
-	 * added to the query without the renter explicitly specifying them.
+	 * required without the renter explicitly specifying them.
+	 * 
+	 * Returned property(s) must:
+	 * 
+	 * - Be in the same city as the renter's city
+	 * - Be in the same state as the renter's state
+	 * - Have at least the number of bedrooms specified by the renter
+	 * - Have at least the number of bathrooms specified by the enter
+	 * - Have an available date exactly or before the renter's move-in date
+	 * - Not require a minimum stay greater than the renter's maximum stay 
+	 * - OR: Not require a maximum stay smaller than the renter's minimum stay 
+	 * - Be ordered my most recent available dates
+	 * 
+	 * Unless the renter explicitly specifies laundry, furnishing, or budget, all
+	 * optional fields are considered as "flexible" and are not added to the query
 	 * 
 	 */
 	public void searchAllPropsBy(QueryExecutor qe, boolean byBudget, boolean byLaundry,
@@ -120,17 +216,18 @@ public class Renter {
 		
 		String searchQuery = "SELECT * FROM `property` WHERE city LIKE ? AND state LIKE ? "
 				+ "AND num_bedrooms >= ? AND num_bathrooms >= ? AND DATE_FORMAT(date_available, '%Y-%m-%d') <= ? "
-				+ "AND ((NOT min_stay > ?) OR (NOT max_stay < ?)) AND rent_status = 'Available'";
+				+ "AND ((NOT min_stay > ?) OR (NOT max_stay < ?)) AND rent_status = 'Available' "
+				+ "ORDER BY date_available";
 		
 		//Optional fields
 		if (byBudget && this.budget > 0) {
 			searchQuery = searchQuery + " AND monthly_rent <= " + this.budget;
 		}
-		if (byLaundry && this.laundry) {
-			searchQuery = searchQuery + " AND laundry = " + this.laundry;
+		if (byLaundry && !this.laundry.equals("Flexible")) {
+			searchQuery = searchQuery + " AND laundry = " + "'" + this.laundry + "'";
 		}
-		if (byFurnished && this.furnished) {
-			searchQuery = searchQuery + " AND furnished = " + this.furnished;
+		if (byFurnished && !this.furnished.equals("Flexible")) {
+			searchQuery = searchQuery + " AND furnished = " + "'" + this.furnished + "'";
 		}
 		searchQuery = searchQuery + ";";
 		
@@ -150,11 +247,7 @@ public class Renter {
 			conn.commit();
 			conn.setAutoCommit(true);
 			
-			System.out.println("Query:");
-			System.out.println(statement);
-			
-			System.out.println("Result:");
-			String rs1, rs2;
+			System.out.println("Query:" + statement);
 			while (resultSet.next()) { 
 				for (int i=0; i<14; i++) {
 					System.out.print(resultSet.getString(i+1) + " | ");
@@ -173,49 +266,66 @@ public class Renter {
 		}
 	}
 	
-	
-//	public static void searchPropsByBathroom(QueryExecutor qe) {
-//		//default: city + state + status "Available"
-//		//numBath >= renter's
-//	
-//	}
-//	
-//	public static void searchPropsByBudget(QueryExecutor qe) {
-//		//default: city + state + status "Available"
-//		//numBath >= renter's
-//	
-//	}
-//	
-//	public static void searchPropsByDuration(QueryExecutor qe) {
-//		//default: city + state + status "Available"
-//		//min stay + max stay
-//	
-//	}
-//	
-//	public static void searchPropsByFurnishment(QueryExecutor qe) {
-//		//default: city + state + status "Available"
-//		
-//	
-//	}
-//	
-//	public static void searchPropsByLaundry(QueryExecutor qe) {
-//		//default: city + state + status "Available"
-//		
-//	
-//	}
-//	
-//	public static void searchPropsByDateAvailable(QueryExecutor qe) {
-//		//default: city + state + status "Available"
-//		
-//	
-//	}
-	
-	public static void sendInquiry(QueryExecutor qe) {
-	
+	/**
+	 * 
+	 * Send an inquiry to the owner of the interested prop. The query performs the following actions:
+	 * - Increment the number of sent inquiries of the renter by 1
+	 * - Increment the number of received inquiries of the owner by 1
+	 * - Add a new record of the inquiry using the renter's ID and the property's ID to table "inquiry"
+	 * 
+	 * @param qe the query executor object
+	 * @param prop the property which the renter inquires
+	 */
+	public void sendInquiry(QueryExecutor qe, Property prop) {
+		Connection conn = qe.getConnection();
+		
+		int propOwnerID = prop.getOwnerID();
+		
+		String renterQuery = "UPDATE `renter` SET sent_inquiries = sent_inquiries + 1 "
+				+ "WHERE renter_id = ?"; 
+		String ownerQuery = "UPDATE `owner` SET received_inquiries = received_inquiries + 1 "
+				+ "WHERE owner_id = ?"; 
+		String inquiryQuery = "INSERT INTO `inquiry` (renter_id, prop_id, inquire_date, status, owner_id) "
+				+ "VALUES (?, ?, CURDATE(), ?, ?)";
+		
+		try (PreparedStatement statementRenter = conn.prepareStatement(renterQuery);
+				PreparedStatement statementOwner = conn.prepareStatement(ownerQuery);
+				PreparedStatement statementInquiry = conn.prepareStatement(inquiryQuery)) {
+			
+			conn.setAutoCommit(false);
+			
+			// Update table renter
+			statementRenter.setInt(1, this.renterID);
+			statementRenter.executeUpdate();
+			
+			// Update table owner
+			statementOwner.setInt(1, propOwnerID);
+			statementOwner.executeUpdate();
+			
+			// Update table inquiry
+			statementInquiry.setInt(1,  this.renterID);
+			statementInquiry.setInt(2,  prop.getPropID());
+			statementInquiry.setString(3,  "Received");
+			statementInquiry.setInt(4,  propOwnerID);
+			statementInquiry.execute();
+			
+			conn.commit();
+			conn.setAutoCommit(true);
+		}
+		catch (SQLException e) {
+			System.out.println(e.getMessage());
+			try {
+				System.out.println("Transaction is being rolled back");
+				conn.rollback();
+			} catch (SQLException e2) {
+				qe.handleSQLException(e2);
+			}
+		}
 	}
 	
 	public static void signContract(QueryExecutor qe) {
 		//Updated action status to be "Rented", add to  LEASE table with "Unpaid" status
+		
 	}
 	
 	public static void payRent(QueryExecutor qe) {

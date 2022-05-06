@@ -202,6 +202,6 @@ public class QueryExecutor {
 		QueryExecutor qe = new QueryExecutor();
 
 		// This is an example of how to execute a query.
-		qe.executeQuery("SELECT * FROM `supplier`");
+//		qe.executeQuery("SELECT * FROM `supplier`");
 	}
 }

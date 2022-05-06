@@ -11,8 +11,8 @@ public class Property {
 	public String state;
 	
 	public double rent;
-	public boolean laundry;
-	public boolean furnished;
+	public String laundry;
+	public String furnished;
 
 	public int numBedroom;
 	public double numBathroom;
@@ -24,8 +24,8 @@ public class Property {
 	
 	public Property(int propID, int ownerID, String address, String city, 
 			String state, int numBedroom, double numBathroom, String dateAvailable, 
-			int minStay, int maxStay, double monthlyRent, boolean laundry, 
-			boolean furnished, String status) {
+			int minStay, int maxStay, double monthlyRent, String laundry, 
+			String furnished, String status) {
 		this.propID = propID;
 		this.ownerID = ownerID;
 		this.address = address;
@@ -60,10 +60,10 @@ public class Property {
 	public double getPropRent() {
 		return this.rent;
 	}
-	public boolean getLaundry() {
+	public String getLaundry() {
 		return this.laundry;
 	}
-	public boolean getFurnished() {
+	public String getFurnished() {
 		return this.furnished;
 	}
 	public int getNumBedroom() {
