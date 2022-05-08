@@ -67,6 +67,18 @@ public class Owner {
 		return this.receivedRent;
 	}
 	
+	/**
+	 * 
+	 * Add a new Owner object to the table 'owner' in the 'lease' database. 
+	 * The Owner object must have at lease the following fields/columns: 
+	 * 
+	 * - Owner's ID
+	 * - First name
+	 * - Last name
+	 * 
+	 * @param qe the Query Executor object
+	 * 
+	 */
 	public void addNewOwner(QueryExecutor qe) {
 		Connection conn = qe.getConnection();
 		
@@ -100,21 +112,42 @@ public class Owner {
 	 * 
 	 * Add a new property to the database. The query performs the following actions
 	 * - Create a new record of the new property in table 'property'
-	 * - Increment the property's owner's number of properties by 1
+	 * - Increment the property's owner's number of owned properties by 1
 	 * 
 	 * @param qe the Query Executor object
-	 * @param prop
+	 * @param prop the property owned by an existing owner
 	 */
 	public void createProperty(QueryExecutor qe, Property prop) {
 		Connection conn = qe.getConnection();
 		
-		String propQuery = "INSERT INTO `property` (prop_id, owner_id, address, city, "
-				+ "state, monthly_rent, laundry, furnished, num_bedrooms,"
-				+ "num_bathrooms, date_available, min_stay, max_stay, rent_status) "
-				+ "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, STR_TO_DATE(?, '%Y-%m-%d'), ?, ?, ?);";
-		
-		String ownerQuery = "UPDATE `owner` SET num_props = num_props + 1"
-				+ " WHERE owner_id = ?;";
+		String propQuery = ""
+				+ "INSERT INTO `property`(\n"
+				+ "    prop_id,\n"
+				+ "    owner_id,\n"
+				+ "    address,\n"
+				+ "    city,\n"
+				+ "    state,\n"
+				+ "    monthly_rent,\n"
+				+ "    laundry,\n"
+				+ "    furnished,\n"
+				+ "    num_bedrooms,\n"
+				+ "    num_bathrooms,\n"
+				+ "    date_available,\n"
+				+ "    min_stay,\n"
+				+ "    max_stay,\n"
+				+ "    rent_status\n"
+				+ ")\n"
+				+ "VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, STR_TO_DATE(?, '%Y-%m-%d'), ?, ?, ?\n"
+				+ ");";
+				
+		String ownerQuery = ""
+				+ "UPDATE\n"
+				+ "    `owner`\n"
+				+ "SET\n"
+				+ "    num_props = num_props + 1\n"
+				+ "WHERE\n"
+				+ "    owner_id = ?"
+				+ ";";	
 		
 		try (PreparedStatement statementProp = conn.prepareStatement(propQuery);
 				PreparedStatement statementOwner = conn.prepareStatement(ownerQuery)) {
@@ -156,47 +189,82 @@ public class Owner {
 	
 	/**
 	 * 
-	 * Accept all inquiries sent by renter(s) regarding some properties owned by this owner.
-	 * If the renter's action status is "Rented", meaning the renter had already secured
-	 * a lease elsewhere, the owner will automatically ignore the inquiry.
+	 * Accept all inquiries sent by renter(s) regarding the property(s) owned by this owner.
 	 * 
-	 * - Count the number of inquiries in the table 'inquiry' whose statuses are "Received" (Not yet accepted)
-	 * and sent by renters who had not already secured a lease elsewhere (renter's action status != "Rented").
-	 * If the properties are no longer available, inquiries will be ignored. Finally, add this number to this 
-	 * owner's current total number of accepted inquiries.
+	 * Requirement for an inquiry to be accepted:
+	 * - There exists an inquiry between a renter and a property with the status "Received" in table 'inquiry'
+	 * - The renter must have not already secured a lease elsewhere (action status != "Rented")
+	 * - The inquired property must still be available 
+	 * - The renter's move-in city matches the inquired property's city
+	 * - The renter's move-in state matches the inquired property's state
+	 * - The renter's move-in date matches the inquired property's available date
+	 * - The inquired property's minimum stay must not be greater than the renter's maximum stay AND..
+	 * - The inquired property's maximum stay must not be smaller than the renter's minimum stay
 	 * 
+	 * If any of the above conditions are not met, the inquiry will be ignored
+	 * 
+	 * The query perform the following actions:
 	 * - Update the status of the inquiries meeting the above requirement to be "Accepted"
-	 * 
-	 * - Update all renters' number of accepted inquiries according to the changes above.
+	 * - Count the number of inquiries whose statuses are "Accepted" by this owner. Then, update this
+	 * owner's current number of accepted inquiries to be this new number.
+	 * - Count the number of inquiries whose statuses are "Accepted" of all existing renters. The,
+	 * update all renters' number of accepted inquiries to be these new numbers.
 	 * 
 	 * @param qe the Query Executor object
 	 */
 	public void acceptInquiry(QueryExecutor qe) {
 		Connection conn = qe.getConnection();
 		
-		String inquiryQuery = "UPDATE `inquiry` i, `renter` r, `property` p, `owner` o "
-				+ "SET i.status = \"Accepted\" "
-				+ "WHERE r.action_status <> \"Rented\" "
-				+ "AND i.renter_id = r.renter_id "
-				+ "AND p.rent_status = \"Available\" "
-				+ "AND i.prop_id = p.prop_id "
-				+ "AND i.owner_id = ?;";
+		String inquiryQuery = ""
+				+ "UPDATE\n"
+				+ "    `inquiry` i,\n"
+				+ "    `renter` r,\n"
+				+ "    `property` p\n"
+				+ "SET\n"
+				+ "    i.status = \"Accepted\"\n"
+				+ "WHERE\n"
+				+ "	   i.renter_id = r.renter_id \n"
+				+ "    AND i.prop_id = p.prop_id AND r.action_status <> \"Rented\" AND p.rent_status = \"Available\"\n"
+				+ "    AND r.city = p.city\n"
+				+ "    AND r.state = p.state\n"
+				+ "    AND DATE_FORMAT(p.date_available, '%Y-%m-%d') <= DATE_FORMAT(r.date_available, '%Y-%m-%d')\n"
+				+ "    AND NOT ((p.min_stay > r.max_stay) OR (p.max_stay < r.min_stay))\n"
+				+ "    AND i.owner_id = ?"
+				+ ";";
 		
-		String ownerQuery = "UPDATE `owner` o SET "
-				+ "o.accepted_inquiries = "
-				+ "( "
-				+ "SELECT COUNT(*) FROM `inquiry` i "
-				+ "WHERE i.status = \"Accepted\" "
-				+ "AND i.owner_id = ?"
-				+ ")"
-				+ "WHERE o.owner_id = ?";
 		
-		// Update the renters whose inquiries got accepted by traversing the table "inquiry" again, checking for
-		// accepted records. Note that some of the accepted records might have been accepted a long time ago.
-		String renterQuery = "UPDATE `renter` r SET accepted_inquiries = (SELECT COUNT(*) FROM `inquiry` i "
-				+ "WHERE i.status = \"Accepted\" AND i.renter_id = r.renter_id)";
+		String ownerQuery = ""
+				+ "UPDATE\n"
+				+ "    `owner` o\n"
+				+ "SET\n"
+				+ "    o.accepted_inquiries =(\n"
+				+ "    SELECT\n"
+				+ "        COUNT(*)\n"
+				+ "    FROM\n"
+				+ "        `inquiry` i\n"
+				+ "    WHERE\n"
+				+ "        i.status = \"Accepted\" "
+				+ "		   AND i.owner_id = ?\n"
+				+ ")\n"
+				+ "WHERE\n"
+				+ "    o.owner_id = ?"
+				+ ";";
+				
 		
-//		UPDATE `owner` o SET o.accepted_inquiries = o.accepted_inquiries + (SELECT COUNT(*) FROM `inquiry` i, `renter` r, `property` p WHERE i.status = "Received" AND r.action_status <> "Rented" AND i.renter_id = r.renter_id AND p.rent_status = "Available" AND i.prop_id = p.prop_id) AND o.owner_id = 110;
+		// Update the renters whose inquiries got accepted using a full scan of the table
+		String renterQuery = ""
+				+ "UPDATE\n"
+				+ "    `renter` r\n"
+				+ "SET\n"
+				+ "    accepted_inquiries =(\n"
+				+ "    SELECT\n"
+				+ "        COUNT(*)\n"
+				+ "    FROM\n"
+				+ "        `inquiry` i\n"
+				+ "    WHERE\n"
+				+ "        i.status = \"Accepted\" \n"
+				+ "        AND i.renter_id = r.renter_id\n"
+				+ ");";
 		
 		try (PreparedStatement statementInquiry = conn.prepareStatement(inquiryQuery);
 				PreparedStatement statementOwner = conn.prepareStatement(ownerQuery);
@@ -226,12 +294,72 @@ public class Owner {
 			}
 		}
 	}
-	
-	public void sendLeaseContract(QueryExecutor qe) {
+	/**
+	 * 
+	 * Send a contract to a renter who has an existing record of accepted inquiry in the 
+	 * table 'inquiry'. The renter must have not already rented a place elsewhere and the 
+	 * property must be available. 
+	 * 
+	 * This is done by creating a lease record in the table 'lease'
+	 * and setting the status to "Awaiting signature".
+	 * 
+	 * 
+	 * @param qe the Query Executor object
+	 * @param renter the renter to whom the owner sends a contract
+	 */
+	public void sendLeaseContract(QueryExecutor qe, Renter renter, Property prop) {
+		Connection conn = qe.getConnection();
 		
-	}
-	
-	public void acceptRentPayment(QueryExecutor qe) {
+		int renterID = renter.getRenterID();
+		int propId = prop.getPropID();
+		int ownerID = this.getOwnerID();
 		
+		String leaseQuery = ""
+				+ "INSERT INTO `lease`(\n"
+				+ "    renter_id,\n"
+				+ "    prop_id,\n"
+				+ "    lease_date,\n"
+				+ "	   status,\n"
+				+ "    owner_id\n"
+				+ ")\n"
+				+ "SELECT\n"
+				+ "    i.renter_id,\n"
+				+ "    i.prop_id,\n"
+				+ "    CURDATE(), \n"
+				+ "    \"Awaiting signature\", \n"
+				+ "    i.owner_id\n"
+				+ "FROM\n"
+				+ "    `inquiry` i, `renter` r, `property` p \n"
+				+ "WHERE\n"
+				+ "    i.renter_id = ? \n"
+				+ "    AND i.prop_id = ? \n"
+				+ "    AND i.owner_id = ? \n"
+				+ "    AND i.renter_id = r.renter_id \n"
+				+ "    AND r.action_status != \"Rented\"\n"
+				+ "    AND i.prop_id = p.prop_id \n"
+				+ "    AND p.rent_status = \"Available\" \n"
+				+ "    AND i.status = \"Accepted\";";
+		
+		try (PreparedStatement statement = conn.prepareStatement(leaseQuery)) {
+			
+			statement.setInt(1, renterID);
+			statement.setInt(2, propId);
+			statement.setInt(3, ownerID);
+			
+			conn.setAutoCommit(false);
+			statement.execute();
+			
+			conn.commit();
+			conn.setAutoCommit(true);
+		}
+		catch (SQLException e) {
+			System.out.println(e.getMessage());
+			try {
+				System.out.println("Transaction is being rolled back");
+				conn.rollback();
+			} catch (SQLException e2) {
+				qe.handleSQLException(e2);
+			}
+		}
 	}
 }

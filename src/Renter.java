@@ -54,11 +54,28 @@ public class Renter {
 		this.maxStay = maxStay;
 	}
 	
+	/**
+	 * 
+	 * Get this renter's ID
+	 * 
+	 * @return this renter's ID
+	 */
 	public int getRenterID() {
 		return this.renterID;
 	}
 	
 	//Methods for setting optional fields
+	
+	
+	/**
+	 * 
+	 * Set the renter's limit of monthly rent. 
+	 * Note that the default limit is 0, meaning the renter has
+	 * a flexible budget.
+	 * 
+	 * @param qe the Query Executor object
+	 * @param budgetLimit the maximum monthly rent the renter can pay for a property
+	 */
 	public void setBudget(QueryExecutor qe, double budgetLimit) {
 		Connection conn = qe.getConnection();
 		
@@ -70,7 +87,7 @@ public class Renter {
 			statement.setInt(2, this.renterID);
 			
 			conn.setAutoCommit(false);
-			statement.execute();
+			statement.executeUpdate();
 			
 			conn.commit();
 			conn.setAutoCommit(true);
@@ -89,6 +106,14 @@ public class Renter {
 		}
 	}
 	
+	/**
+	 * 
+	 * Set the renter's in-unit laundry preference to be either "Yes" or "No".
+	 * Note that the default option is "Flexible".
+	 * 
+	 * @param qe the Query Executor object
+	 * @param hasLaundry an indicator of whether the property has an in-unit laundry
+	 */
 	public void setLaundry(QueryExecutor qe, String hasLaundry) {
 		Connection conn = qe.getConnection();
 		
@@ -100,12 +125,12 @@ public class Renter {
 			statement.setInt(2, this.renterID);
 			
 			conn.setAutoCommit(false);
-			statement.execute();
+			statement.executeUpdate();
 			
 			conn.commit();
 			conn.setAutoCommit(true);
 			
-			//Only update class instance if transaction succeeds
+			//Only update this Renter object's instance if the transaction succeeds
 			this.laundry = hasLaundry;
 
 		} catch (SQLException e) {
@@ -119,6 +144,14 @@ public class Renter {
 		}
 	}
 	
+	/**
+	 * 
+	 * Set the renter's furnishing preference to be either "Yes" or "No".
+	 * Note that the default option is "Flexible".
+	 * 
+	 * @param qe the Query Executor object
+	 * @param isFurnished an indicator of whether the property is furnished or unfurnished
+	 */
 	public void setFurnishing(QueryExecutor qe, String isFurnished) {
 		Connection conn = qe.getConnection();
 		
@@ -130,12 +163,12 @@ public class Renter {
 			statement.setInt(2, this.renterID);
 			
 			conn.setAutoCommit(false);
-			statement.execute();
+			statement.executeUpdate();
 			
 			conn.commit();
 			conn.setAutoCommit(true);
 			
-			//Only update class instance if transaction succeeds
+			//Only update this Renter object's instance if the transaction succeeds
 			this.furnished = isFurnished;
 
 		} catch (SQLException e) {
@@ -149,7 +182,24 @@ public class Renter {
 		}
 	}
 	
-	
+	/**
+	 * 
+	 * Add a new Renter object to the table 'renter' in the 'lease' database. 
+	 * Fields, or columns, that are optional are not added to the query, except for the following: 
+	 * 
+	 * - Renter's ID
+	 * - First name
+	 * - Last name
+	 * - City to which the renter is moving
+	 * - State of the city to which the renter is moving
+	 * - Number of bedrooms 
+	 * - Number of bathrooms
+	 * - The date on which the renter is looking to move in
+	 * - A minimum number of months the renter is looking to lease
+	 * - A maximum number of months the renter is looking to lease
+	 * 
+	 * @param qe the Query Executor object
+	 */
 	public void addNewRenter(QueryExecutor qe) {
 		Connection conn = qe.getConnection();
 		
@@ -188,25 +238,31 @@ public class Renter {
 	}
 	/**
 	 * Search all properties by optional filters - budget, laundry, and furnished. 
-	 * If any of the optional filters is not specified, they won't be added to the query.
+	 * If any of these filters are not specified, they won't be added to the query.
 	 * 
 	 * Note that the query will set all other filters (city, state, date, etc) to match
-	 * the fields initially associated with a renter by default. These fields are automatically
-	 * required without the renter explicitly specifying them.
+	 * the fields initially associated with a renter by default. These fields are required
+	 * without the renter explicitly specifying them.
 	 * 
 	 * Returned property(s) must:
 	 * 
 	 * - Be in the same city as the renter's city
 	 * - Be in the same state as the renter's state
 	 * - Have at least the number of bedrooms specified by the renter
-	 * - Have at least the number of bathrooms specified by the enter
+	 * - Have at least the number of bathrooms specified by the renter
 	 * - Have an available date exactly or before the renter's move-in date
-	 * - Not require a minimum stay greater than the renter's maximum stay 
-	 * - OR: Not require a maximum stay smaller than the renter's minimum stay 
-	 * - Be ordered my most recent available dates
+	 * - Not require a minimum stay greater than the renter's maximum stay OR...
+	 * - Not require a maximum stay smaller than the renter's minimum stay 
+	 * - Be ordered by most recent available dates
 	 * 
 	 * Unless the renter explicitly specifies laundry, furnishing, or budget, all
 	 * optional fields are considered as "flexible" and are not added to the query
+	 * 
+	 * 
+	 * @param qe the Query Executor object
+	 * @param byBudget an optional filter matching the the renter's non-zero budget
+	 * @param byLaundry an optional filter matching the renter's preference for in-unit laundry
+	 * @param byFurnished an optional filter matching the renter's preference for furnishing
 	 * 
 	 */
 	public void searchAllPropsBy(QueryExecutor qe, boolean byBudget, boolean byLaundry,
@@ -214,10 +270,23 @@ public class Renter {
 		
 		Connection conn = qe.getConnection();
 		
-		String searchQuery = "SELECT * FROM `property` WHERE city LIKE ? AND state LIKE ? "
-				+ "AND num_bedrooms >= ? AND num_bathrooms >= ? AND DATE_FORMAT(date_available, '%Y-%m-%d') <= ? "
-				+ "AND ((NOT min_stay > ?) OR (NOT max_stay < ?)) AND rent_status = 'Available' "
-				+ "ORDER BY date_available";
+		String searchQuery = ""
+				+ "SELECT\n"
+				+ "    *\n"
+				+ "FROM\n"
+				+ "    `property`\n"
+				+ "WHERE\n"
+				+ "    city = ? \n"
+				+ "    AND state = ? \n"
+				+ "    AND num_bedrooms >= ? \n"
+				+ "    AND num_bathrooms >= ? \n"
+				+ "    AND DATE_FORMAT(date_available, '%Y-%m-%d') <= ? \n"
+				+ "    AND NOT ((min_stay > ?) OR(max_stay < ?)) \n"
+				+ "    AND rent_status = \"Available\"\n"
+				+ "ORDER BY\n"
+				+ "    date_available "
+				+ ";";
+				
 		
 		//Optional fields
 		if (byBudget && this.budget > 0) {
@@ -238,8 +307,8 @@ public class Renter {
 			statement.setInt(3, this.numBedroom);
 			statement.setInt(4, this.numBathroom);
 			statement.setString(5, this.date);
-			statement.setInt(6, this.minStay);
-			statement.setInt(7, this.maxStay);
+			statement.setInt(6, this.maxStay);
+			statement.setInt(7, this.minStay);
 			
 			conn.setAutoCommit(false);
 			ResultSet resultSet = statement.executeQuery();
@@ -247,7 +316,7 @@ public class Renter {
 			conn.commit();
 			conn.setAutoCommit(true);
 			
-			System.out.println("Query:" + statement);
+//			System.out.println("Query:" + statement);
 			while (resultSet.next()) { 
 				for (int i=0; i<14; i++) {
 					System.out.print(resultSet.getString(i+1) + " | ");
@@ -269,12 +338,13 @@ public class Renter {
 	/**
 	 * 
 	 * Send an inquiry to the owner of the interested prop. The query performs the following actions:
-	 * - Increment the number of sent inquiries of the renter by 1
-	 * - Increment the number of received inquiries of the owner by 1
-	 * - Add a new record of the inquiry using the renter's ID and the property's ID to table "inquiry"
+	 * - Increment the number of the renter's sent inquiries by 1
+	 * - Increment the number of the owner's received inquiries by 1
+	 * - Add a new record of inquiry using the renter's ID and the property's ID to table "inquiry" 
+	 * with the inquiry date equal to the current date
 	 * 
-	 * @param qe the query executor object
-	 * @param prop the property which the renter inquires
+	 * @param qe the Query Executor object
+	 * @param prop the property the renter inquires
 	 */
 	public void sendInquiry(QueryExecutor qe, Property prop) {
 		Connection conn = qe.getConnection();
@@ -322,14 +392,129 @@ public class Renter {
 			}
 		}
 	}
-	
-	public static void signContract(QueryExecutor qe) {
-		//Updated action status to be "Rented", add to  LEASE table with "Unpaid" status
+	/**
+	 * 
+	 * Sign the contract for renting a property, assuming that the property is still available.
+	 * The renter can only sign the contract if:
+	 * 
+	 * - The renter has not already secured a lease elsewhere (action status != "Rented")
+	 * - There exists a lease record between the renter and the owner of the interested property
+	 * 
+	 * The query performs the following actions:
+	 * 
+	 * - Update the renter's action status to be "Rented"
+	 * - Update the property's rent status to be "Taken"
+	 * - Update the lease record to be "Signed"
+	 * - Increment the owner's number of rented properties by 1
+	 * 
+	 * 
+	 * @param qe
+	 * @param prop the property for which the renter wants to sign a sublease contract
+	 */
+	public void signContract(QueryExecutor qe, Property prop) {
+		Connection conn = qe.getConnection();
+		
+		String updateQuery = ""
+				+ "UPDATE\n"
+				+ "    `renter` r,\n"
+				+ "    `property` p,\n"
+				+ "    `owner` o,\n"
+				+ "    `lease` l1\n"
+				+ "SET\n"
+				+ "    r.action_status = \"Rented\",\n"
+				+ "    p.rent_status = \"Taken\",\n"
+				+ "    o.num_rented_props = o.num_rented_props + 1,\n"
+				+ "    l1.status = \"Signed\"\n"
+				+ "WHERE\n"
+				+ "    r.action_status != \"Rented\" AND EXISTS(\n"
+				+ "    SELECT\n"
+				+ "        *\n"
+				+ "    FROM\n"
+				+ "        `lease` l2\n"
+				+ "    WHERE\n"
+				+ "        l2.renter_id = l1.renter_id AND l2.prop_id = p.prop_id "
+				+ "        AND l2.status = \"Awaiting signature\"\n"
+				+ ") AND p.owner_id = o.owner_id AND r.renter_id = ? AND p.prop_id = ?";
+		try (PreparedStatement statement = conn.prepareStatement(updateQuery)) {
+			
+			conn.setAutoCommit(false);
+		
+			statement.setInt(1, this.getRenterID());
+			statement.setInt(2, prop.getPropID());
+			statement.executeUpdate();
+			
+			conn.commit();
+			conn.setAutoCommit(true);
+		}
+		catch (SQLException e) {
+			System.out.println(e.getMessage());
+			try {
+				System.out.println("Transaction is being rolled back");
+				conn.rollback();
+			} catch (SQLException e2) {
+				qe.handleSQLException(e2);
+			}
+		}
 		
 	}
-	
-	public static void payRent(QueryExecutor qe) {
+	/**
+	 * 
+	 * Make a monthly payment to the owner of the rented property.
+	 * The renter can only pay if:
+	 * 
+	 * - There exists a signed lease contract record between the renter and 
+	 * the owner of the interested property
+	 * 
+	 * The query performs the following actions:
+	 * 
+	 * - Update the lease record to be "Paid"
+	 * - Add the property's monthly rent to the owner's received payment  
+	 * 
+	 * @param qe the Query Executor object
+	 * @param prop the property for which the renter pays the monthly rent
+	 */
+	public void payRent(QueryExecutor qe, Property prop) {
+		Connection conn = qe.getConnection();
 		
+		String updateQuery = ""
+				+ "UPDATE\n"
+				+ "    `renter` r,\n"
+				+ "    `property` p,\n"
+				+ "    `owner` o,\n"
+				+ "    `lease` l1\n"
+				+ "SET\n"
+				+ "	l1.status = \"Paid\",\n"
+				+ "    o.received_rent = o.received_rent + p.monthly_rent\n"
+				+ "WHERE\n"
+				+ "    EXISTS(\n"
+				+ "    SELECT\n"
+				+ "        *\n"
+				+ "    FROM\n"
+				+ "        `lease` l2\n"
+				+ "    WHERE\n"
+				+ "        l2.renter_id = l1.renter_id AND l2.prop_id = p.prop_id AND l2.status = \"Signed\"\n"
+				+ "    ) \n"
+				+ "AND p.owner_id = o.owner_id AND r.renter_id = ? AND p.prop_id = ?;";
+		
+		try (PreparedStatement statement = conn.prepareStatement(updateQuery)) {
+			conn.setAutoCommit(false);
+			
+			statement.setInt(1, this.getRenterID());
+			statement.setInt(2, prop.getPropID());
+			statement.executeUpdate();
+			
+			conn.commit();
+			conn.setAutoCommit(true);
+		}
+		catch (SQLException e) {
+			System.out.println(e.getMessage());
+			try {
+				System.out.println("Transaction is being rolled back");
+				conn.rollback();
+			} catch (SQLException e2) {
+				qe.handleSQLException(e2);
+			}
+		}
 	}
 	
 	public static void bookmarkFavoriteProps(QueryExecutor qe) {
