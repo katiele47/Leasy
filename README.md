@@ -1,5 +1,5 @@
 # Leasy
-A simple Java program for finding rents and subleases targeting young professionals and students working on internships.
+A simple Java program for finding rents and subleases targeting young professionals and student interns.
 
 Link to my [project presentation.](https://github.com/katiele47/Leasy/files/10062335/KatieLe_COMP378_FP3.pdf)
 
